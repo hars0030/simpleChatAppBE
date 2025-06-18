@@ -1,71 +1,81 @@
 import { Socket, Server } from "socket.io";
 
-const users: { userId: string; publicKey: string; socketId: string }[] = [];
+// Define a strongly-typed user structure
+interface ConnectedUser {
+  userId: string;
+  publicKey: string;
+  socketId: string;
+}
 
-export const handleSocket = (socket: Socket, io: Server) => {
-  console.log("New client connected");
+// Define the message structure
+interface EncryptedMessage {
+  userId: string;
+  to: string;
+  data: string; // Encrypted message
+  aesKey: string; // Encrypted AES key
+  iv: string; // IV used for AES encryption
+}
 
-  socket.on("register_user", (data) => {
+// Store connected users in memory
+const users: ConnectedUser[] = [];
+
+export const handleSocket = (socket: Socket, io: Server): void => {
+  console.log(`🔌 New client connected: ${socket.id}`);
+
+  socket.on("register_user", (data: Partial<ConnectedUser>) => {
     if (data?.userId && data?.publicKey) {
-      // Check if user already exists and update their public key and socket ID
-      const existingUserIndex = users.findIndex(
-        (u) => u.userId === data.userId
-      );
-      if (existingUserIndex !== -1) {
-        users.splice(existingUserIndex, 1);
+      const existingIndex = users.findIndex((u) => u.userId === data.userId);
+      if (existingIndex !== -1) {
+        users.splice(existingIndex, 1);
       }
-      // Add or update user in the list
+
       users.push({
         userId: data.userId,
         publicKey: data.publicKey,
         socketId: socket.id,
       });
 
-      console.log("Registered user:", data.userId);
+      console.log(`✅ Registered user: ${data.userId}`);
       io.emit("user_list", users);
+    } else {
+      console.warn("❌ Invalid registration data");
+      socket.emit("error", "Invalid registration data");
     }
   });
 
-  socket.on("send_message", (data) => {
+  socket.on("send_message", (data: EncryptedMessage) => {
     try {
-      if (
-        !data ||
-        !data.userId ||
-        !data.data ||
-        !data.to ||
-        !data.aesKey ||
-        !data.iv
-      ) {
+      const { userId, to, data: messageData, aesKey, iv } = data;
+
+      if (!userId || !to || !messageData || !aesKey || !iv) {
         throw new Error("Invalid message format");
       }
 
-      // Find recipient's socket
-      const recipient = users.find((u) => u.userId === data.to);
+      const recipient = users.find((u) => u.userId === to);
       if (!recipient) {
         throw new Error("Recipient not found");
       }
 
-      // Send message only to the recipient
       io.to(recipient.socketId).emit("receive_message", data);
-      console.log(`Message sent from ${data.userId} to ${data.to}`);
-    } catch (error) {
-      console.error("Error handling message:", error);
-      socket.emit("error", "Failed to process message");
+      console.log(`📨 Message sent from ${userId} to ${to}`);
+    } catch (error: any) {
+      console.error("🚨 Message error:", error.message);
+      socket.emit("error", "Failed to send message");
     }
   });
 
   socket.on("disconnect", () => {
-    // Remove user from the list
     const userIndex = users.findIndex((u) => u.socketId === socket.id);
     if (userIndex !== -1) {
-      const disconnectedUser = users[userIndex];
-      users.splice(userIndex, 1);
-      console.log("User disconnected:", disconnectedUser.userId);
+      const [removed] = users.splice(userIndex, 1);
+      console.log(`❌ User disconnected: ${removed.userId}`);
       io.emit("user_list", users);
+    } else {
+      console.log(`❌ Unregistered socket disconnected: ${socket.id}`);
     }
   });
 
-  socket.on("error", (error) => {
-    console.error("Socket error:", error);
+  socket.on("error", (err) => {
+    console.error("🛑 Socket error:", err);
   });
 };
