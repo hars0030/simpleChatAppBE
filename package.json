@@ -11,14 +11,14 @@
     "node": "20.x"
   },
   "dependencies": {
+    "dotenv": "^16.3.1",
     "express": "^4.19.2",
-    "socket.io": "^4.7.5",
-    "dotenv": "^16.3.1"
+    "socket.io": "^4.7.5"
   },
   "devDependencies": {
-    "typescript": "^5.4.5",
-    "@types/node": "^20.11.30",
     "@types/express": "^4.17.21",
-    "@types/socket.io": "^3.0.2"
+    "@types/node": "^20.19.1",
+    "@types/socket.io": "^3.0.2",
+    "typescript": "^5.4.5"
   }
 }
