@@ -4,7 +4,7 @@ import { Server, Socket } from "socket.io";
 import os from "os";
 import dotenv from "dotenv";
 
-import { handleSocket } from "./socket";
+import { handleSocket } from "./socket.js";
 
 dotenv.config();
 
